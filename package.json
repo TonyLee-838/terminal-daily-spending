@@ -1,0 +1,16 @@
+{
+  "name": "income",
+  "version": "1.0.0",
+  "description": "",
+  "main": "interactive.js",
+  "scripts": {
+    "test": "node interactive.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "chalk": "^4.1.2",
+    "inquirer": "^8.1.2",
+    "simple-json-db": "^1.2.3"
+  }
+}
