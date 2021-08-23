@@ -4,7 +4,7 @@
   "description": "",
   "main": "interactive.js",
   "scripts": {
-    "test": "node interactive.js"
+    "start": "node interactive.js"
   },
   "author": "",
   "license": "ISC",

@@ -5,10 +5,12 @@ const {
   getDateString,
   autoCompleteDateInput,
   autoCompleteMonthInput,
+  autoCompleteDescription,
 } = require("./util");
+
 const { startup } = require("./startup");
 
-const { keyDB, dateDB } = startup();
+const { keyDB, dateDB, memoDB } = startup();
 
 async function run() {
   const answers = await askQuestions();
@@ -53,7 +55,7 @@ function askQuestions() {
         return answer.operation === "list";
       },
       transformer(input) {
-        return autoCompleteMonthInput(input);
+        return autoCompleteMonthInput(input, memoDB);
       },
     },
     {
@@ -83,6 +85,9 @@ function askQuestions() {
       message: "描述",
       when(answer) {
         return answer.operation === "add";
+      },
+      transformer(input) {
+        return autoCompleteDescription(input, memoDB);
       },
     },
     {
@@ -159,9 +164,10 @@ function handleListRecord(query, showDailyReport) {
 
 function handleAddRecord(date, msg, val) {
   const realDate = autoCompleteDateInput(date);
+  const transformedDescription = autoCompleteDescription(msg, memoDB);
 
   const count = dateDB.get("count");
-  const record = { id: count + 1, msg, val };
+  const record = { id: count + 1, msg: transformedDescription, val };
 
   const recordForDate = dateDB.get(realDate);
   if (!recordForDate) {
@@ -233,51 +239,67 @@ function printRecords(result, query, showDailyReport) {
 
   console.log(chalk.cyanBright("日期\t\tid\t\t金額\t\t\t描述"));
 
-  Object.entries(result)
-    .sort((a, b) => new Date(a[0]) - new Date(b[0]))
-    .forEach(([date, records]) => {
-      let localIncome = 0;
-      let localSpends = 0;
-      if (date === "count") return;
+  const sorted = Object.entries(result).sort(
+    (a, b) => new Date(a[0]) - new Date(b[0])
+  );
+
+  sorted.forEach(([date, records]) => {
+    let localIncome = 0;
+    let localSpends = 0;
+    if (date === "count") return;
+    console.log(
+      chalk.cyanBright(
+        date +
+          " ------------------------------------------------------------------"
+      )
+    );
+
+    records.forEach((record, i) => {
+      if (record.val > 0) {
+        income += +record.val;
+        localIncome += +record.val;
+        incomeCount++;
+      } else {
+        spends += +record.val;
+        spendsCount++;
+        localSpends += +record.val;
+      }
+
       console.log(
-        chalk.cyanBright(
-          date +
-            " ------------------------------------------------------------------"
-        )
+        `-${i + 1}-\t\t${record.id}\t\t${
+          record.val >= 0
+            ? chalk.greenBright("+" + record.val)
+            : chalk.redBright(record.val)
+        }${record.val.length < 10 ? "\t\t" : "\t\t\t"}\t${record.msg}`
       );
-
-      records.forEach((record, i) => {
-        if (record.val > 0) {
-          income += +record.val;
-          localIncome += +record.val;
-          incomeCount++;
-        } else {
-          spends += +record.val;
-          spendsCount++;
-          localSpends += +record.val;
-        }
-
-        console.log(
-          `-${i + 1}-\t\t${record.id}\t\t${
-            record.val >= 0
-              ? chalk.greenBright("+" + record.val)
-              : chalk.redBright(record.val)
-          }${record.val.length < 10 ? "\t\t" : "\t\t\t"}\t${record.msg}`
-        );
-      });
-
-      if (showDailyReport)
-        console.log(
-          chalk.cyanBright("本日收入：  ") +
-            chalk.greenBright(localIncome) +
-            chalk.cyanBright(" 本日支出：  ") +
-            chalk.redBright(localSpends)
-        );
     });
 
-  if (query !== "All") console.log(chalk.blue(`${query}\t統計：`));
-  console.log(chalk.redBright(`支出:\t ${spends} \t共${spendsCount} 筆`));
-  console.log(chalk.greenBright(`收入:\t ${income}  \t共${incomeCount} 筆`));
+    if (showDailyReport)
+      console.log(
+        chalk.cyanBright("收：  ") +
+          chalk.greenBright(localIncome.toFixed(2)) +
+          chalk.cyanBright(" 支：  ") +
+          chalk.redBright(localSpends.toFixed(2))
+      );
+  });
+
+  console.log(
+    chalk.blue(`${sorted[1][0]} - ${sorted[sorted.length - 1][0]}\t統計：`)
+  );
+  console.log(
+    chalk.redBright(`支出:\t   ${spends.toFixed(2)} \t共${spendsCount} 筆`)
+  );
+  console.log(
+    chalk.greenBright(`收入:\t   ${income.toFixed(2)}  \t共${incomeCount} 筆`)
+  );
+
+  if (showDailyReport) {
+    console.log(
+      chalk.yellowBright(
+        `日均支出:  ${(spends / Object.keys(result).length).toFixed(2)}`
+      )
+    );
+  }
 }
 
 function syncKeys() {

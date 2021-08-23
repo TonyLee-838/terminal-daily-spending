@@ -7,8 +7,11 @@ function startup() {
   const keyDB = new JSONdb("./db/key-db.json", {
     syncOnWrite: true,
   });
+  const memoDB = new JSONdb("./db/memo-db.json", {
+    syncOnWrite: true,
+  });
 
-  return { dateDB, keyDB };
+  return { dateDB, keyDB, memoDB };
 }
 
 module.exports = {
